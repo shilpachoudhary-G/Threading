@@ -1,0 +1,20 @@
+#include <iostream>
+#include <future>
+using namespace std;
+class A{
+  public:
+  int add(int a,int b)
+  {
+    return a+b;
+  }
+};
+
+int main() 
+{
+    A a;
+    future<int> f = async(launch::async,&A::add,ref(a),5,6);
+    
+    cout<<f.get()<<endl;
+    
+    return 0;
+}
