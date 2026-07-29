@@ -1,0 +1,139 @@
+#include <iostream>
+#include <thread>
+//non static example 
+class Worker
+{
+public:
+    void doWork(int value)
+    {
+        std::cout << "Thread ID: "
+                  << std::this_thread::get_id()
+                  << "\nValue = " << value << std::endl;
+    }
+};
+
+int main()
+{
+    Worker w;
+
+    std::thread t(&Worker::doWork, &w, 100);
+
+    t.join();
+
+    return 0;
+}
+
+//passing object by ref 
+std::thread t(&Worker::doWork, std::ref(w), 100);
+
+//static example 
+#include <iostream>
+#include <thread>
+
+class Worker
+{
+public:
+    static void doWork(int x)
+    {
+        std::cout << "Value = " << x << std::endl;
+    }
+};
+
+int main()
+{
+    std::thread t(&Worker::doWork, 50);
+
+    t.join();
+}
+
+//multiple object example 
+#include <iostream>
+#include <thread>
+
+class Worker
+{
+public:
+    void print(int id)
+    {
+        std::cout << "Worker " << id
+                  << " Thread: "
+                  << std::this_thread::get_id()
+                  << std::endl;
+    }
+};
+
+int main()
+{
+    Worker w1, w2;
+
+    std::thread t1(&Worker::print, &w1, 1);
+    std::thread t2(&Worker::print, &w2, 2);
+
+    t1.join();
+    t2.join();
+}
+
+// using lambda 
+#include <iostream>
+#include <thread>
+
+class Worker
+{
+public:
+    void work()
+    {
+        std::cout << "Working...\n";
+    }
+};
+
+int main()
+{
+    Worker w;
+
+    std::thread t([&w]()
+    {
+        w.work();
+    });
+
+    t.join();
+}
+
+// thread safe 
+#include <iostream>
+#include <thread>
+#include <mutex>
+
+class Counter
+{
+private:
+    int count = 0;
+    std::mutex mtx;
+
+public:
+    void increment()
+    {
+        for (int i = 0; i < 100000; i++)
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            count++;
+        }
+    }
+
+    int getCount() const
+    {
+        return count;
+    }
+};
+
+int main()
+{
+    Counter c;
+
+    std::thread t1(&Counter::increment, &c);
+    std::thread t2(&Counter::increment, &c);
+
+    t1.join();
+    t2.join();
+
+    std::cout << "Count = " << c.getCount() << std::endl;
+}
