@@ -50,3 +50,62 @@ int main()
 
     t.join();
 }
+//future wait 
+#include <iostream>
+#include <future>
+#include <thread>
+#include <chrono>
+
+int main()
+{
+    auto future = std::async(std::launch::async, [] {
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+        return 42;
+    });
+
+    while (future.wait_for(std::chrono::seconds(1)) != std::future_status::ready)
+    {
+        std::cout << "Still waiting...\n";
+    }
+
+    std::cout << "Result = " << future.get() << std::endl;
+}
+
+
+#include <iostream>
+#include <thread>
+#include <future>
+#include <chrono>
+
+void calculate(std::promise<int> p)
+{
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+
+    std::cout << "Worker: Computation completed\n";
+
+    p.set_value(100);
+}
+
+int main()
+{
+    std::promise<int> p;
+    std::future<int> f = p.get_future();
+
+    std::thread t(calculate, std::move(p));
+
+    std::cout << "Main: Waiting for result...\n";
+
+    // Block until the result is ready
+    f.wait();
+
+    std::cout << "Main: Result is ready.\n";
+
+    // Retrieve the result
+    int result = f.get();
+
+    std::cout << "Result = " << result << std::endl;
+
+    t.join();
+
+    return 0;
+}
