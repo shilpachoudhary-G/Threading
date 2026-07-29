@@ -1,0 +1,81 @@
+//diffrence between semaphore and mutex 
+Answer : 
+A mutex and a semaphore are both synchronization primitives, but they serve different purposes.
+
+Mutex is used for mutual exclusion (protecting a critical section).
+Semaphore is used for resource counting and signaling.
+
+//what ise bainry seamphore 
+A binary semaphore is a semaphore whose value can only be 0 or 1.
+
+1 → Resource is available.
+0 → Resource is unavailable.
+
+It is mainly used for synchronization between threads and is similar to a mutex, 
+but there is an important difference: a binary semaphore does not have ownership, whereas a mutex does.
+
+// binary semaphore implenetation in c++14 
+
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+
+class Semaphore
+{
+private:
+    std::mutex mtx;
+    std::condition_variable cv;
+    int count;
+
+public:
+    Semaphore(int count = 0) : count(count) {}
+
+    void acquire()
+    {
+        std::unique_lock<std::mutex> lock(mtx);
+
+        cv.wait(lock, [this] {
+            return count > 0;
+        });
+
+        --count;
+    }
+
+    void release()
+    {
+        std::unique_lock<std::mutex> lock(mtx);
+
+        ++count;
+
+        lock.unlock();
+
+        cv.notify_one();
+    }
+};
+
+Semaphore sem(1);
+
+void worker(int id)
+{
+    sem.acquire();
+
+    std::cout << "Thread " << id << " entered critical section\n";
+
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    std::cout << "Thread " << id << " leaving critical section\n";
+
+    sem.release();
+}
+
+int main()
+{
+    std::thread t1(worker,1);
+    std::thread t2(worker,2);
+    std::thread t3(worker,3);
+
+    t1.join();
+    t2.join();
+    t3.join();
+}
