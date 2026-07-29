@@ -1,0 +1,105 @@
+1. uses lock() function. 
+  A clean C++11 solution uses std::mutex (one mutex per fork) and std::lock() together with std::lock_guard (using std::adopt_lock). 
+This avoids deadlock because std::lock() locks multiple mutexes without creating a circular wait.
+
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <vector>
+#include <chrono>
+
+const int N = 5;
+
+// One mutex for each fork
+std::mutex forks[N];
+
+void philosopher(int id)
+{
+    int left = id;
+    int right = (id + 1) % N;
+
+    std::cout << "Philosopher " << id << " is thinking\n";
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    // Lock both forks without deadlock
+    std::lock(forks[left], forks[right]);
+
+    // Transfer ownership to lock_guards
+    std::lock_guard<std::mutex> leftLock(forks[left], std::adopt_lock);
+    std::lock_guard<std::mutex> rightLock(forks[right], std::adopt_lock);
+
+    std::cout << "Philosopher " << id << " is eating\n";
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    std::cout << "Philosopher " << id << " finished eating\n";
+
+    // Locks are automatically released when leftLock and rightLock
+    // go out of scope.
+}
+
+int main()
+{
+    std::vector<std::thread> philosophers;
+
+    for (int i = 0; i < N; ++i)
+    {
+        philosophers.emplace_back(philosopher, i);
+    }
+
+    for (auto &t : philosophers)
+    {
+        t.join();
+    }
+
+    return 0;
+}
+
+2. // resoure ording :
+  #include <iostream>
+#include <thread>
+#include <mutex>
+#include <vector>
+#include <chrono>
+
+const int N = 5;
+
+std::mutex forks[N];
+
+void philosopher(int id)
+{
+    int left = id;
+    int right = (id + 1) % N;
+
+    // Always lock the smaller fork number first
+    int first = std::min(left, right);
+    int second = std::max(left, right);
+
+    while (true)
+    {
+        std::cout << "Philosopher " << id << " is thinking\n";
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+        {
+            std::lock_guard<std::mutex> lock1(forks[first]);
+            std::lock_guard<std::mutex> lock2(forks[second]);
+
+            std::cout << "Philosopher " << id << " is eating\n";
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        } // Both forks released automatically
+
+        break;
+    }
+}
+
+int main()
+{
+    std::vector<std::thread> philosophers;
+
+    for (int i = 0; i < N; i++)
+        philosophers.emplace_back(philosopher, i);
+
+    for (auto &t : philosophers)
+        t.join();
+}
