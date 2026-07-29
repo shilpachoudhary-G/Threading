@@ -1,0 +1,152 @@
+std::memory_order_relaxed
+std::memory_order_acquire
+std::memory_order_release
+std::memory_order_acq_rel
+std::memory_order_seq_cst
+What is memory ordering :
+=========================
+Modern CPUs and compilers reorder instructions to improve performance.
+Without synchronization, different threads may observe operations in a different order than the source code.
+
+Memory ordering tells the compiler and CPU what reorderings are allowed.
+
+1.  memory_order_relaxed : 
+Only guarantees the operation itself is atomic. 
+#include <atomic>
+#include <thread>
+#include <iostream>
+
+std::atomic<int> counter(0);
+
+void increment()
+{
+    for(int i=0;i<100000;i++)
+        counter.fetch_add(1, std::memory_order_relaxed);
+}
+
+int main()
+{
+    std::thread t1(increment);
+    std::thread t2(increment);
+
+    t1.join();
+    t2.join();
+
+    std::cout << counter << std::endl;
+}
+
+This works because you only care about the correctness of the counter value, not ordering with respect to other memory accesses. 
+
+
+2. memory_order_release : 
+Release is used by the thread publishing data. 
+data = 100;
+
+ready.store(true, std::memory_order_release);
+
+Every write before the store() becomes visible before another thread successfully performs a matching acquire load.
+
+3. memory_order_acquire 
+Consumer: 
+while(!ready.load(std::memory_order_acquire));
+
+std::cout << data;
+Once the acquire sees the released value, no subsequent reads can move before the acquire.
+
+#include <iostream>
+#include <thread>
+#include <atomic>
+
+std::atomic<bool> ready(false);
+int data = 0;
+
+void producer()
+{
+    data = 100;
+
+    ready.store(true, std::memory_order_release);
+}
+
+void consumer()
+{
+    while(!ready.load(std::memory_order_acquire));
+
+    std::cout << data << std::endl;
+}
+
+int main()
+{
+    std::thread t1(producer);
+    std::thread t2(consumer);
+
+    t1.join();
+    t2.join();
+}
+
+//compare and exhcnare 
+compare and exchange :
+#include <iostream>
+#include <thread>
+#include <atomic>
+
+std::atomic<int> winner(0);
+
+void worker(int id)
+{
+    int expected = 0;
+
+    if (winner.compare_exchange_strong(expected, id))
+        std::cout << "Thread "
+                  << id
+                  << " won\n";
+}
+
+int main()
+{
+    std::thread t1(worker,1);
+    std::thread t2(worker,2);
+    std::thread t3(worker,3);
+
+    t1.join();
+    t2.join();
+    t3.join();
+}
+
+Fails only when the values differ.
+Easier to understand.
+Good for one-shot comparisons.
+
+//compare excahnge weak 
+
+May fail even when the values are equal (called a spurious failure).
+Usually more efficient on some CPU architectures.
+Intended to be used inside a retry loop.
+
+Example:
+
+while (!value.compare_exchange_weak(expected, desired))
+{
+    // retry
+}
+
+Q >> Why is compare_exchange_weak() usually used inside a loop?
+
+Because it may fail due to:
+
+>> Another thread modifying the value.
+>> A spurious failure, even if the value has not changed.
+
+Using a loop handles both cases correctly:
+
+int expected = atomicValue.load();
+
+while (!atomicValue.compare_exchange_weak(expected, expected + 1))
+{
+    // expected is automatically updated on each failure
+}
+
+This pattern is the standard building block for many lock-free algorithms.
+>> compare_exchange_weak() can fail for two reasons. First, the atomic object's value may not match the expected value because another thread updated it. 
+Second, it may fail spuriously even when the values match. Spurious failures are allowed by 
+the C++ standard to support efficient implementations on architectures that use load-linked/store-conditional (LL/SC).
+Therefore, compare_exchange_weak() is normally used inside a retry loop, while compare_exchange_strong() is preferred for single-attempt operations."
