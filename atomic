@@ -1,0 +1,87 @@
+#include <iostream>
+#include <thread>
+#include <atomic>
+
+std::atomic<int> counter(0);
+
+void increment()
+{
+    for (int i = 0; i < 100000; i++)
+        counter++;
+}
+
+int main()
+{
+    std::thread t1(increment);
+    std::thread t2(increment);
+
+    t1.join();
+    t2.join();
+
+    std::cout << "Counter = " << counter << std::endl;
+}
+
+//atomic_flag 
+#include <iostream>
+#include <thread>
+#include <atomic>
+#include <chrono>
+
+std::atomic<bool> ready(false);
+
+void worker()
+{
+    while (!ready)
+    {
+        // wait
+    }
+
+    std::cout << "Worker started\n";
+}
+
+int main()
+{
+    std::thread t(worker);
+
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    ready = true;
+
+    t.join();
+}
+// fetch_add 
+
+#include <iostream>
+#include <atomic>
+
+int main()
+{
+    std::atomic<int> value(10);
+
+    int old = value.fetch_add(5);
+
+    std::cout << "Old = " << old << std::endl;
+    std::cout << "New = " << value << std::endl;
+}
+
+//compare and excahneg 
+#include <iostream>
+#include <atomic>
+
+int main()
+{
+    std::atomic<int> value(10);
+
+    int expected = 10;
+
+    if (value.compare_exchange_strong(expected, 20))
+    {
+        std::cout << "Updated successfully\n";
+    }
+    else
+    {
+        std::cout << "Update failed\n";
+    }
+
+    std::cout << value << std::endl;
+}
