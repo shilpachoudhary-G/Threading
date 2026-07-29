@@ -18,3 +18,35 @@ int main()
     
     return 0;
 }
+//future and promise 
+#include <iostream>
+#include <thread>
+#include <future>
+
+void calculateSquare(std::promise<int> p, int num)
+{
+    int result = num * num;
+
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    p.set_value(result);      // Send result
+}
+
+int main()
+{
+    std::promise<int> promise;
+
+    // Get the future associated with the promise
+    std::future<int> future = promise.get_future();
+
+    std::thread t(calculateSquare, std::move(promise), 10);
+
+    std::cout << "Waiting for result...\n";
+
+    // Blocks until promise sets the value
+    int answer = future.get();
+
+    std::cout << "Square = " << answer << std::endl;
+
+    t.join();
+}
